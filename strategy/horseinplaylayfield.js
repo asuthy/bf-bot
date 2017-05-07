@@ -38,17 +38,38 @@ module.exports = {
                 status = marketBook.status,
                 favouritePrice = utils.getMinPriceFromRunners(marketBook.runners);
 
-            if (favouritePrice > strategyConfig.layPrice) {
-                // Lay the field
-                const accountFunds = yield account.getAccountFunds(session),
-                    maxLiability = (accountFunds.result.availableToBetBalance * (strategyConfig.liabilityPercent / 100)).toFixed(2),
-                    stake = (maxLiability / (strategyConfig.layPrice - 1)).toFixed(2);
+            // Check favourite odds are well above our lay price
+            if (favouritePrice > strategyConfig.layPrice + 0.1) {
+                const accountFunds = yield account.getAccountFunds(session);
 
-                logger.log(`${currentMarket.description} - Laying the field of ${activeRunners} runners at ${strategyConfig.layPrice} for £${stake}`, 'info');
+                // Check we have enough money
+                if (accountFunds.result.availableToBetBalance > 2) {
 
-                _this.placeLayOrders(session, currentMarket, marketBook.runners, strategyConfig.layPrice, stake);
+                    // Check the number of runners
+                    if (strategyConfig.excludeRunners.indexOf(activeRunners) === -1) {
+                        let maxLiability = (accountFunds.result.availableToBetBalance * (strategyConfig.liabilityPercent / 100)).toFixed(2),
+                            stake = (maxLiability / (strategyConfig.layPrice - 1)).toFixed(2);
+
+                        // Check for min bet size
+                        if (stake < 2.00) {
+                            stake = 2.00;
+                            maxLiability = (stake * (layPrice - 1)).toFixed(2);
+                        }
+
+                        if (strategyConfig.placeOrders) {
+                            logger.log(`${currentMarket.description} - Laying the field of ${activeRunners} runners at ${strategyConfig.layPrice} for £${stake}`, 'info');
+                            _this.placeLayOrders(session, currentMarket, marketBook.runners, strategyConfig.layPrice, stake);
+                        } else {
+                            logger.log(`Not laying the field. Not configured to place orders`, 'info');
+                        }
+                    } else {
+                        logger.log(`Not laying the field. Excluded number of runners ${activeRunners}`, 'info');
+                    }
+                } else {
+                    logger.log(`Not laying the field. Account balance ${accountFunds.result.availableToBetBalance}`, 'info');
+                }
             } else {
-                logger.log(`Not laying the field. Favourite price ${favouritePrice}`, 'info')
+                logger.log(`Not laying the field. Favourite price ${favouritePrice}`, 'info');
             }
 
             return;
@@ -64,8 +85,20 @@ module.exports = {
             logger.log(`Trading Races on ${utils.dateFormatLong(startDate)}`, 'info');
 
             // Get current account funds
-            const accountFunds = yield account.getAccountFunds(session),
-                maxLiability = (accountFunds.result.availableToBetBalance * (strategyConfig.liabilityPercent / 100)).toFixed(2);
+            const accountFunds = yield account.getAccountFunds(session);
+
+            let maxLiability = (accountFunds.result.availableToBetBalance * (strategyConfig.liabilityPercent / 100)).toFixed(2),
+                stake = (maxLiability / (strategyConfig.layPrice - 1)).toFixed(2);
+
+            // Check for min bet size
+            if (stake < 2.00) {
+                stake = 2.00;
+                maxLiability = (stake * (strategyConfig.layPrice - 1)).toFixed(2);
+            }
+
+            if (maxLiability > accountFunds.result.availableToBetBalance) {
+                maxLiability = 0;
+            }
 
             logger.log(`Account funds £${accountFunds.result.availableToBetBalance}. Max liability per trade £${maxLiability}`, 'info');
 
@@ -75,8 +108,19 @@ module.exports = {
             // Get all win markets for horse events
             const races = yield market.todaysHorseWinMarkets(session);
 
+            // Filter meetings to exclude by venue
+            const tradeMeetings = _.filter(meetings.result, function(meeting) {
+                return strategyConfig.excludeVenues.indexOf(meeting.event.venue) === -1;
+            });
+
+            // Filter races to exclude by venue and class
+            const tradeRaces = _.filter(races.result, function(race) {
+                let raceClass = race.marketName.substr(race.marketName.indexOf(' ') + 1);
+                return ((strategyConfig.excludeVenues.indexOf(race.event.venue) === -1) && (strategyConfig.excludeClasses.indexOf(raceClass) === -1));
+            });
+
             // Grab the horse racing event ids into array
-            const eventIds = _.map(meetings.result, 'event.id');
+            const eventIds = _.map(tradeMeetings, 'event.id');
 
             // Loop until the end of the current day - then start all over again
             while (utils.dateOnly(new Date()).getDate() === startDate.getDate()) {
@@ -86,7 +130,7 @@ module.exports = {
 
                 for (let meeting of currentRaceStatus.result) {
                     // Check if the race status has changed and store
-                    _this.processRaceStatus(session, races.result, meeting);
+                    _this.processRaceStatus(session, tradeRaces, meeting);
                 }
 
                 // Wait for configured period
@@ -142,8 +186,6 @@ module.exports = {
         logger.log(`${currentMarket.description} - At The Post`, 'info');
 
         return promise.coroutine(function*() {
-            // Get the market book and trade the market
-            //if (currentMarket.marketId === '1.131049943') {
             const marketBook = yield market.listMarketBook(session, [currentMarket.marketId]);
 
             if (marketBook.result) {
@@ -152,7 +194,6 @@ module.exports = {
                 logger.log('Unable to get market book', 'error');
                 console.log(marketBook);
             }
-            //}
 
             return;
         })();

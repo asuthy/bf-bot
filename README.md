@@ -14,9 +14,13 @@ Create config/local.js:
         strategy: 'horseinplaylayfield',
         strategies: {
             horseinplaylayfield: {
+                placeOrders: true,
                 eventStatusRefreshMs: 10000,
                 liabilityPercent: 1,
-                layPrice: 1.80
+                layPrice: 1.80,
+                excludeRunners: [],
+                excludeVenues: [],
+                excludeClasses: []
             }
         }
     };

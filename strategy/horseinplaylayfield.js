@@ -53,7 +53,7 @@ module.exports = {
                         // Check for min bet size
                         if (stake < 2.00) {
                             stake = 2.00;
-                            maxLiability = (stake * (layPrice - 1)).toFixed(2);
+                            maxLiability = (stake * (strategyConfig.layPrice - 1)).toFixed(2);
                         }
 
                         if (strategyConfig.placeOrders) {

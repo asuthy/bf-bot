@@ -128,9 +128,13 @@ module.exports = {
                 // Get live race status for horse events
                 const currentRaceStatus = yield raceStatus.currentRaceStatus(session, eventIds);
 
-                for (let meeting of currentRaceStatus.result) {
-                    // Check if the race status has changed and store
-                    _this.processRaceStatus(session, tradeRaces, meeting);
+                if (currentRaceStatus.result) {
+                    for (let meeting of currentRaceStatus.result) {
+                        // Check if the race status has changed and store
+                        _this.processRaceStatus(session, tradeRaces, meeting);
+                    }
+                } else {
+                    logger.log(`Unable to get race statii`, 'info');
                 }
 
                 // Wait for configured period

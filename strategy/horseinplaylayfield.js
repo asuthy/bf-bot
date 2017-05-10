@@ -126,15 +126,17 @@ module.exports = {
             while (utils.dateOnly(new Date()).getDate() === startDate.getDate()) {
 
                 // Get live race status for horse events
-                const currentRaceStatus = yield raceStatus.currentRaceStatus(session, eventIds);
+                if (eventIds.length > 0) {
+                    const currentRaceStatus = yield raceStatus.currentRaceStatus(session, eventIds);
 
-                if (currentRaceStatus.result) {
-                    for (let meeting of currentRaceStatus.result) {
-                        // Check if the race status has changed and store
-                        _this.processRaceStatus(session, tradeRaces, meeting);
+                    if (currentRaceStatus.result) {
+                        for (let meeting of currentRaceStatus.result) {
+                            // Check if the race status has changed and store
+                            _this.processRaceStatus(session, tradeRaces, meeting);
+                        }
+                    } else {
+                        logger.log(`Unable to get race statii`, 'info');
                     }
-                } else {
-                    logger.log(`Unable to get race statii`, 'info');
                 }
 
                 // Wait for configured period

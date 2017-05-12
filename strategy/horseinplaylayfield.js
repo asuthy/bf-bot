@@ -56,6 +56,8 @@ module.exports = {
                             maxLiability = (stake * (strategyConfig.layPrice - 1)).toFixed(2);
                         }
 
+                        logger.log(`Account funds £${accountFunds.result.availableToBetBalance}. Max liability per trade £${maxLiability}`, 'info');
+
                         if (strategyConfig.placeOrders) {
                             logger.log(`${currentMarket.description} - Laying the field of ${activeRunners} runners at ${strategyConfig.layPrice} for £${stake}`, 'info');
                             _this.placeLayOrders(session, currentMarket, marketBook.runners, strategyConfig.layPrice, stake);
@@ -124,9 +126,10 @@ module.exports = {
 
             // Loop until the end of the current day - then start all over again
             while (utils.dateOnly(new Date()).getDate() === startDate.getDate()) {
+                const currentHour = new Date().getHours();
 
                 // Get live race status for horse events
-                if (eventIds.length > 0) {
+                if (eventIds.length > 0 && currentHour >= 11 && currentHour <= 22) {
                     const currentRaceStatus = yield raceStatus.currentRaceStatus(session, eventIds);
 
                     if (currentRaceStatus.result) {
@@ -135,6 +138,7 @@ module.exports = {
                             _this.processRaceStatus(session, tradeRaces, meeting);
                         }
                     } else {
+                        console.log(eventIds);
                         logger.log(`Unable to get race statii`, 'info');
                     }
                 }

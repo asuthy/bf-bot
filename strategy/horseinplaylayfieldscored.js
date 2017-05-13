@@ -11,7 +11,7 @@ const config = require('../config/local'),
     raceStatus = require('../lib/racestatus'),
     utils = require('../lib/utils'),
     betting = require('../lib/betting'),
-    strategyConfig = config.strategies.horseinplaylayfield;
+    strategyConfig = config.strategies.horseinplaylayfieldscored;
 
 module.exports = {
 
@@ -36,17 +36,17 @@ module.exports = {
             const activeRunners = marketBook.numberOfActiveRunners,
                 totalMatched = marketBook.totalMatched,
                 status = marketBook.status,
-                favouritePrice = utils.getMinPriceFromRunners(marketBook.runners);
+                favouritePrice = utils.getMinPriceFromRunners(marketBook.runners),
+                raceScore = _this.getRaceScore(currentMarket, marketBook);
 
-            // Check favourite odds are well above our lay price
-            if (favouritePrice > strategyConfig.layPrice + 0.1) {
-                const accountFunds = yield account.getAccountFunds(session);
+            if (raceScore > (strategyConfig.layPrice + strategyConfig.scoreTargetOffset)) {
+                // Check favourite odds are well above our lay price
+                if (favouritePrice > strategyConfig.layPrice + 0.08) {
+                    const accountFunds = yield account.getAccountFunds(session);
 
-                // Check we have enough money
-                if (accountFunds.result.availableToBetBalance > 2) {
+                    // Check we have enough money
+                    if (accountFunds.result.availableToBetBalance > 2) {
 
-                    // Check the number of runners
-                    if (strategyConfig.excludeRunners.indexOf(activeRunners) === -1) {
                         let maxLiability = (accountFunds.result.availableToBetBalance * (strategyConfig.liabilityPercent / 100)).toFixed(2),
                             stake = (maxLiability / (strategyConfig.layPrice - 1)).toFixed(2);
 
@@ -56,26 +56,70 @@ module.exports = {
                             maxLiability = (stake * (strategyConfig.layPrice - 1)).toFixed(2);
                         }
 
-                        logger.log(`Account funds £${accountFunds.result.availableToBetBalance}. Max liability per trade £${maxLiability}`, 'info');
+                        logger.log(`Account funds £${accountFunds.result.availableToBetBalance.toFixed(2)} Max liability per trade £${maxLiability}`, 'info');
 
                         if (strategyConfig.placeOrders) {
-                            logger.log(`${currentMarket.description} - Laying the field of ${activeRunners} runners at ${strategyConfig.layPrice} for £${stake}`, 'info');
+                            logger.log(`${currentMarket.description} - Laying the field of ${activeRunners} runners at ${strategyConfig.layPrice} for £${stake}. Race score: ${raceScore}`, 'info');
                             _this.placeLayOrders(session, currentMarket, marketBook.runners, strategyConfig.layPrice, stake);
                         } else {
                             logger.log(`Not laying the field. Not configured to place orders`, 'info');
                         }
+
                     } else {
-                        logger.log(`Not laying the field. Excluded number of runners ${activeRunners}`, 'info');
+                        logger.log(`Not laying the field. Account balance ${accountFunds.result.availableToBetBalance.toFixed(2)}`, 'info');
                     }
                 } else {
-                    logger.log(`Not laying the field. Account balance ${accountFunds.result.availableToBetBalance}`, 'info');
+                    logger.log(`Not laying the field. Favourite price ${favouritePrice}`, 'info');
                 }
             } else {
-                logger.log(`Not laying the field. Favourite price ${favouritePrice}`, 'info');
+                logger.log(`Not laying the field. Race score: ${raceScore.toFixed(4)}. Required score: ${(strategyConfig.layPrice + strategyConfig.scoreTargetOffset).toFixed(4)}`, 'info');
             }
 
             return;
         })();
+    },
+
+    getRaceScore: function(currentMarket, race) {
+        const theDate = new Date();
+
+        const runnerScore = _.find(strategyConfig.runnerScores, {
+            runners: race.numberOfActiveRunners
+        });
+
+        const distanceScore = _.find(strategyConfig.distanceScores, {
+            distance: currentMarket.marketName.substr(0, currentMarket.marketName.indexOf(' '))
+        });
+
+        const venueScore = _.find(strategyConfig.venueScores, {
+            venue: currentMarket.event.venue.replace(/'/g, "")
+        });
+
+        const dayScore = _.find(strategyConfig.dayScores, {
+            day: theDate.getDay()
+        });
+
+        let raceClassScore,
+            raceClass;
+
+        raceClassScore = _.find(strategyConfig.raceClassScores, {
+            race_class: currentMarket.marketName.substr(currentMarket.marketName.indexOf(' ') + 1).replace(/'/g, "")
+        });
+
+        const hourScore = _.find(strategyConfig.hourScores, {
+            hour: theDate.getHours()
+        });
+
+        let totalScore = 0;
+
+        if (hourScore) {
+            if (raceClassScore) {
+                totalScore = ((hourScore.matches + runnerScore.matches + distanceScore.matches + venueScore.matches + dayScore.matches + raceClassScore.matches) / 6.00);
+            } else {
+                totalScore = ((hourScore.matches + runnerScore.matches + distanceScore.matches + venueScore.matches + dayScore.matches) / 5.00);
+            }
+        }
+
+        return totalScore;
     },
 
     processTodaysRaces: function(session) {
@@ -102,7 +146,7 @@ module.exports = {
                 maxLiability = 0;
             }
 
-            logger.log(`Account funds £${accountFunds.result.availableToBetBalance}. Max liability per trade £${maxLiability}`, 'info');
+            logger.log(`Account funds £${accountFunds.result.availableToBetBalance.toFixed(2)} Max liability per trade £${maxLiability}`, 'info');
 
             // Hang around here until 11:00
             let currentHour = new Date().getHours();
@@ -122,32 +166,21 @@ module.exports = {
             // Get all win markets for horse events
             const races = yield market.todaysHorseWinMarkets(session);
 
-            // Filter meetings to exclude by venue
-            const tradeMeetings = _.filter(meetings.result, function(meeting) {
-                return strategyConfig.excludeVenues.indexOf(meeting.event.venue) === -1;
-            });
-
-            // Filter races to exclude by venue and class
-            const tradeRaces = _.filter(races.result, function(race) {
-                let raceClass = race.marketName.substr(race.marketName.indexOf(' ') + 1);
-                return ((strategyConfig.excludeVenues.indexOf(race.event.venue) === -1) && (strategyConfig.excludeClasses.indexOf(raceClass) === -1));
-            });
-
             // Grab the horse racing event ids into array
-            const eventIds = _.map(tradeMeetings, 'event.id');
+            const eventIds = _.map(meetings.result, 'event.id');
 
             // Loop until the end of the current day - then start all over again
             while (utils.dateOnly(new Date()).getDate() === startDate.getDate()) {
                 const currentHour = new Date().getHours();
 
                 // Get live race status for horse events
-                if (eventIds.length > 0 && currentHour >= 11 && currentHour <= 22) {
+                if (eventIds.length > 0 && currentHour >= 7 && currentHour <= 22) {
                     const currentRaceStatus = yield raceStatus.currentRaceStatus(session, eventIds);
 
-                    if (currentRaceStatus.result) {
+                    if (currentRaceStatus && currentRaceStatus.result) {
                         for (let meeting of currentRaceStatus.result) {
                             // Check if the race status has changed and store
-                            _this.processRaceStatus(session, tradeRaces, meeting);
+                            _this.processRaceStatus(session, races.result, meeting);
                         }
                     } else {
                         console.log(eventIds);
@@ -263,7 +296,6 @@ module.exports = {
 
             const placeResult = yield betting.placeOrder(session, currentMarket.marketId, bets);
 
-            //console.log(placeResult);
             return placeResult;
         })();
     }

@@ -59,7 +59,7 @@ module.exports = {
                         logger.log(`Account funds £${accountFunds.result.availableToBetBalance.toFixed(2)} Max liability per trade £${maxLiability}`, 'info');
 
                         if (strategyConfig.placeOrders) {
-                            logger.log(`${currentMarket.description} - Laying the field of ${activeRunners} runners at ${strategyConfig.layPrice} for £${stake}. Race score: ${raceScore}`, 'info');
+                            logger.log(`${currentMarket.description} - Laying the field of ${activeRunners} runners at ${strategyConfig.layPrice} for £${stake}. Race score: ${raceScore.toFixed(4)}`, 'info');
                             _this.placeLayOrders(session, currentMarket, marketBook.runners, strategyConfig.layPrice, stake);
                         } else {
                             logger.log(`Not laying the field. Not configured to place orders`, 'info');
@@ -111,12 +111,10 @@ module.exports = {
 
         let totalScore = 0;
 
-        if (hourScore) {
-            if (raceClassScore) {
-                totalScore = ((hourScore.matches + runnerScore.matches + distanceScore.matches + venueScore.matches + dayScore.matches + raceClassScore.matches) / 6.00);
-            } else {
-                totalScore = ((hourScore.matches + runnerScore.matches + distanceScore.matches + venueScore.matches + dayScore.matches) / 5.00);
-            }
+        if (raceClassScore) {
+            totalScore = ((distanceScore.matches + venueScore.matches + raceClassScore.matches) / 3.00);
+        } else {
+            totalScore = ((distanceScore.matches + venueScore.matches) / 2.00);
         }
 
         return totalScore;

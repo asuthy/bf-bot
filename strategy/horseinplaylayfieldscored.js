@@ -124,7 +124,9 @@ module.exports = {
         const _this = this;
 
         return promise.coroutine(function*() {
-            let startDate = utils.dateOnly(new Date());
+            let startDate = utils.dateOnly(new Date()),
+                meetings,
+                eventIds;
 
             logger.log(`Trading Races on ${utils.dateFormatLong(startDate)} using ${config.strategy} strategy`, 'info');
 
@@ -159,20 +161,20 @@ module.exports = {
             }
 
             // Get today's horse racing meetings
-            const meetings = yield bfEvent.todaysHorseEvents(session);
+            meetings = yield bfEvent.todaysHorseEvents(session);
+
+            // Grab the horse racing event ids into array
+            eventIds = _.map(meetings.result, 'event.id');
 
             // Get all win markets for horse events
             const races = yield market.todaysHorseWinMarkets(session);
-
-            // Grab the horse racing event ids into array
-            const eventIds = _.map(meetings.result, 'event.id');
 
             // Loop until the end of the current day - then start all over again
             while (utils.dateOnly(new Date()).getDate() === startDate.getDate()) {
                 const currentHour = new Date().getHours();
 
                 // Get live race status for horse events
-                if (eventIds.length > 0 && currentHour >= 7 && currentHour <= 22) {
+                if (eventIds.length > 0 && currentHour >= 11 && currentHour <= 22) {
                     const currentRaceStatus = yield raceStatus.currentRaceStatus(session, eventIds);
 
                     if (currentRaceStatus && currentRaceStatus.result) {
@@ -181,8 +183,14 @@ module.exports = {
                             _this.processRaceStatus(session, races.result, meeting);
                         }
                     } else {
-                        console.log(eventIds);
-                        logger.log(`Unable to get race statii`, 'info');
+                        //console.log(eventIds);
+                        logger.log(`Unable to get race statii - refreshing today's events`, 'info');
+                        // Probably some events finished. Refresh them and carry on
+                        // Get today's horse racing meetings
+                        meetings = yield bfEvent.todaysHorseEvents(session);
+
+                        // Grab the horse racing event ids into array
+                        eventIds = _.map(meetings.result, 'event.id');
                     }
                 }
 

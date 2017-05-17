@@ -133,6 +133,15 @@ module.exports = {
             // Get current account funds
             const accountFunds = yield account.getAccountFunds(session);
 
+            if (!accountFunds.result) {
+                logger.log(`Unable to get account funds, trying to process todays races again ...`, 'info');
+
+                // Wait for configured period
+                yield utils.sleep(strategyConfig.eventStatusRefreshMs);
+
+                return;
+            }
+
             let maxLiability = (accountFunds.result.availableToBetBalance * (strategyConfig.liabilityPercent / 100)).toFixed(2),
                 stake = (maxLiability / (strategyConfig.layPrice - 1)).toFixed(2);
 

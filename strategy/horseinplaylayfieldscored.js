@@ -192,14 +192,12 @@ module.exports = {
                             _this.processRaceStatus(session, races.result, meeting);
                         }
                     } else {
-                        //console.log(eventIds);
-                        logger.log(`Unable to get race statii - refreshing today's events`, 'info');
-                        // Probably some events finished. Refresh them and carry on
-                        // Get today's horse racing meetings
-                        meetings = yield bfEvent.todaysHorseEvents(session);
+                        logger.log(`Unable to get race statii, trying to process todays races again ...`, 'info');
 
-                        // Grab the horse racing event ids into array
-                        eventIds = _.map(meetings.result, 'event.id');
+                        // Wait for configured period
+                        yield utils.sleep(strategyConfig.eventStatusRefreshMs);
+
+                        return;
                     }
                 }
 

@@ -23,6 +23,11 @@ module.exports = {
             while (1 !== 2) {
                 // Call once per day
                 yield _this.processTodaysRaces(session);
+
+                session = new betfair.BetfairSession(config.applicationKey);
+
+                yield auth.login(session);
+                return _this.init(session);
             }
         })();
     },

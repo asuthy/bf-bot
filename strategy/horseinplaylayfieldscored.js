@@ -99,10 +99,6 @@ module.exports = {
             venue: currentMarket.event.venue.replace(/'/g, "")
         });
 
-        const dayScore = _.find(strategyConfig.dayScores, {
-            day: theDate.getDay()
-        });
-
         let raceClassScore,
             raceClass;
 
@@ -116,10 +112,12 @@ module.exports = {
 
         let totalScore = 0;
 
-        if (raceClassScore) {
-            totalScore = ((distanceScore.matches + venueScore.matches + raceClassScore.matches) / 3.00);
-        } else {
-            totalScore = ((distanceScore.matches + venueScore.matches) / 2.00);
+        if (distanceScore && hourScore && runnerScore) {
+            if (raceClassScore) {
+                totalScore = ((distanceScore.matches + venueScore.matches + raceClassScore.matches + hourScore.matches + runnerScore.matches) / 5.00);
+            } else {
+                totalScore = ((distanceScore.matches + venueScore.matches + hourScore.matches + runnerScore.matches) / 4.00);
+            }
         }
 
         return totalScore;

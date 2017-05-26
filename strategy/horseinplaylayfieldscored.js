@@ -11,6 +11,7 @@ const config = require('../config/local'),
     raceStatus = require('../lib/racestatus'),
     utils = require('../lib/utils'),
     betting = require('../lib/betting'),
+    auth = require('../lib/auth'),
     strategyConfig = config.strategies.horseinplaylayfieldscored;
 
 module.exports = {

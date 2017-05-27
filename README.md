@@ -11,16 +11,28 @@ Create config/local.js:
         log: {
             level: 'silly'
         },
-        strategy: 'horseinplaylayfield',
+        strategy: 'horseinplaylayfieldscored',
         strategies: {
             horseinplaylayfield: {
-                placeOrders: true,
+                placeOrders: false,
                 eventStatusRefreshMs: 10000,
                 liabilityPercent: 1,
                 layPrice: 1.80,
                 excludeRunners: [],
                 excludeVenues: [],
                 excludeClasses: []
+            },
+            horseinplaylayfieldscored: {
+                placeOrders: true,
+                eventStatusRefreshMs: 10000,
+                liabilityPercent: 1,
+                fixedStakeAmount: 2,
+                layPrice: 1.80,
+                scoreTargetOffset: 0,
+                runnerScores: [],
+                venueScores: [],
+                raceClassScores: [],
+                hourScores: []
             }
         }
     };

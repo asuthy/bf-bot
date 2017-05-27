@@ -56,6 +56,11 @@ module.exports = {
                         let maxLiability = (accountFunds.result.availableToBetBalance * (strategyConfig.liabilityPercent / 100)).toFixed(2),
                             stake = (maxLiability / (strategyConfig.layPrice - 1)).toFixed(2);
 
+                        if (strategyConfig.fixedStakeAmount) {
+                            stake = strategyConfig.fixedStakeAmount;
+                            maxLiability = (stake * (strategyConfig.layPrice - 1)).toFixed(2);
+                        }
+
                         // Check for min bet size
                         if (stake < 2.00) {
                             stake = 2.00;
@@ -148,6 +153,11 @@ module.exports = {
 
             let maxLiability = (accountFunds.result.availableToBetBalance * (strategyConfig.liabilityPercent / 100)).toFixed(2),
                 stake = (maxLiability / (strategyConfig.layPrice - 1)).toFixed(2);
+
+            if (strategyConfig.fixedStakeAmount) {
+                stake = strategyConfig.fixedStakeAmount;
+                maxLiability = (stake * (strategyConfig.layPrice - 1)).toFixed(2);
+            }
 
             // Check for min bet size
             if (stake < 2.00) {

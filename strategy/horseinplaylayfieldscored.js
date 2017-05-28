@@ -143,7 +143,7 @@ module.exports = {
             const accountFunds = yield account.getAccountFunds(session);
 
             if (!accountFunds.result) {
-                logger.log(`Unable to get account funds, trying to process todays races again ...`, 'info');
+                logger.log(`Unable to get account funds, attempting to process todays races again ...`, 'info');
 
                 // Wait for configured period
                 yield utils.sleep(strategyConfig.eventStatusRefreshMs);
@@ -176,6 +176,15 @@ module.exports = {
             while (currentHour < 11) {
                 // Call into API to keep session open
                 const accountFunds = yield account.getAccountFunds(session);
+
+                if (!accountFunds.result) {
+                    logger.log(`Unable to get account funds while waiting for racing to start, attempting to process todays races again ...`, 'info');
+
+                    // Wait for configured period
+                    yield utils.sleep(strategyConfig.eventStatusRefreshMs);
+
+                    return;
+                }
 
                 currentHour = new Date().getHours();
 

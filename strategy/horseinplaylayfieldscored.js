@@ -71,7 +71,7 @@ module.exports = {
 
                         if (strategyConfig.placeOrders) {
                             logger.log(`${currentMarket.description} - Laying the field of ${activeRunners} runners at ${strategyConfig.layPrice} for £${stake}. Race score: ${raceScore.toFixed(4)}`, 'info');
-                            _this.placeLayOrders(session, currentMarket, marketBook.runners, strategyConfig.layPrice, stake);
+                            yield _this.placeLayOrders(session, currentMarket, marketBook.runners, strategyConfig.layPrice, stake);
                         } else {
                             logger.log(`Not laying the field. Not configured to place orders`, 'info');
                         }
@@ -331,6 +331,8 @@ module.exports = {
             }
 
             const placeResult = yield betting.placeOrder(session, currentMarket.marketId, bets);
+
+            console.log(placeResult);
 
             return placeResult;
         })();

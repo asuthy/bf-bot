@@ -332,7 +332,7 @@ module.exports = {
 
             const placeResult = yield betting.placeOrder(session, currentMarket.marketId, bets);
 
-            console.log(placeResult);
+            //console.log(placeResult);
 
             return placeResult;
         })();
